@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="140" height="300" viewBox="0 0 140 300">
+  <defs>
+    <linearGradient id="stone" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#03050a"/>
+      <stop offset="1" stop-color="#0b111d"/>
+    </linearGradient>
+  </defs>
+
+  <!-- outlined cross -->
+  <g fill="none" stroke="#d6e2f2" stroke-width="2.2" stroke-linejoin="miter">
+    <path d="M56 2 L64 2 L64 34 L94 34 L94 40 L64 40 L64 140"/>
+    <path d="M56 2 L56 34 L34 34 L34 40 L56 40 L56 140"/>
+  </g>
+
+  <!-- headstone -->
+  <path fill="url(#stone)" d="M10 300 L10 150 C10 118 30 104 70 104 C110 104 130 118 130 150 L130 300 Z"/>
+  <path fill="none" stroke="#a8bedf" stroke-width="4" stroke-linecap="round" d="M20 230 L20 152 C20 126 38 114 70 114 C102 114 120 126 120 152 L120 230"/>
+  <path fill="none" stroke="#e6eefa" stroke-width="1.2" opacity="0.7" d="M90 116 C108 120 118 132 118 152"/>
+</svg>
