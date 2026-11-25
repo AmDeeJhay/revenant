@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="700" viewBox="0 0 1440 700">
+  <defs>
+    <linearGradient id="earth" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#060a13"/>
+      <stop offset="0.25" stop-color="#03060c"/>
+      <stop offset="1" stop-color="#020409"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a3a58" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#2a3a58" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <path fill="url(#earth)" d="M0 62 L36 56 L72 64 L180 70 L300 58 L420 50 L560 30 L690 0 L760 12 L880 26 L960 32 L1060 36 L1180 62 L1300 54 L1380 60 L1440 56 L1440 700 L0 700 Z"/>
+  <!-- faint moonlit rim on the crest -->
+  <path fill="url(#rim)" d="M300 58 L420 50 L560 30 L690 0 L760 12 L880 26 L960 32 L960 44 L880 38 L760 24 L690 12 L560 42 L420 62 L300 70 Z"/>
+
+  <!-- ground cracks -->
+  <g fill="#1c2c49">
+    <path d="M360 140 L420 112 L466 126 L500 112 L520 118 L566 110 L590 92 L612 90 L650 104 L610 102 L594 112 L572 124 L520 130 L496 124 L470 140 L420 126 Z"/>
+    <path d="M800 0 L808 44 L840 46 L890 52 L960 80 L1020 96 L1060 92 L1090 132 L1060 128 L1074 160 L1040 120 L1000 110 L940 98 L884 70 L836 64 L800 66 Z"/>
+  </g>
+</svg>
