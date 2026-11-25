@@ -43,7 +43,7 @@ export function GraveCard({ project, index }: { project: GraveProject; index: nu
         <div className="rv-tomb relative h-[86px]" style={{ aspectRatio: tomb.ratio }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={tomb.src} alt="" aria-hidden="true" draggable={false} className="h-full w-full select-none" />
-          <span className="rv-candle" style={{ left: `${tomb.wick.x}%`, top: `${tomb.wick.y}%` }} aria-hidden="true" />
+          <span className="rv-grave-flame" style={{ left: `${tomb.wick.x}%`, top: `${tomb.wick.y}%` }} aria-hidden="true" />
         </div>
         {project.adoptedBy && <AdopterBadge login={project.adoptedBy.login} />}
       </div>
