@@ -78,7 +78,7 @@ export function GraveCard({ project, index }: { project: GraveProject; index: nu
 function AdopterBadge({ login }: { login: string }) {
   return (
     <span
-      className="rv-adopter absolute -right-5 top-0 grid h-11 w-11 place-items-center rounded-full border-[3px] border-[#1a1f33] bg-linear-to-br from-[#9b6bff] to-[#5b37c9] font-display text-sm font-bold uppercase text-white shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_6px_18px_rgba(120,80,255,0.35)]"
+      className="rv-adopter absolute -right-6 top-4 grid h-11 w-11 place-items-center rounded-full border-[3px] border-[#1a1f33] bg-linear-to-br from-[#9b6bff] to-[#5b37c9] font-display text-sm font-bold uppercase text-white shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_6px_18px_rgba(120,80,255,0.35)]"
       title={`Adopted by @${login}`}
     >
       {login.slice(0, 2)}
