@@ -1,0 +1,40 @@
+{
+  "name": "revenant",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "description": "A haunted graveyard for abandoned code. Fix it, and the ghost is resurrected.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest --run",
+    "e2e": "playwright test",
+    "build-index": "tsx scripts/build-index.ts",
+    "seed-demo": "tsx scripts/seed-demo.ts"
+  },
+  "dependencies": {
+    "@octokit/auth-app": "^7.0.0",
+    "next": "^15.0.0",
+    "octokit": "^4.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "^15.0.0",
+    "fast-check": "^3.23.0",
+    "tailwindcss": "^4.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
+  "engines": { "node": ">=20" }
+}

@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #05070d;
+  --candle: #f5b95a;
+  --ghost: #9be7f0;
+  --danger: #ff5d73;
+  --dawn-gold: #f7d27a;
+  --dawn-green: #7fd49a;
+}
+
+html { color-scheme: dark; }
+body { background: var(--bg); color: #d7e3ee; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
