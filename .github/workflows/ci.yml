@@ -11,6 +11,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
       # Use the lockfile when it exists; otherwise resolve once and publish it as an artifact.
       - name: Install dependencies
         run: |
