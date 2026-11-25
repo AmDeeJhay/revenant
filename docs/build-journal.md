@@ -2,6 +2,12 @@
 
 Newest entries first. Feeds the Kiro write-up.
 
+## 2026-11-25: Public Graveyard
+- Built `/graveyard` from the design: header with search, title, live status line ("showing X/Y spirits · N banshees · M risen"), 5-column grid of graves, cobweb, and two ghosts.
+- Each grave shows language, epitaph, haunt stage chip, haunt bar and an "Open Grave" link. Demo data lives in `src/lib/demo/projects.ts` (fictional names); stage thresholds in `src/lib/haunt/stages.ts`.
+- Motion: cards rise out of the ground in sequence, haunt bars fill, candle flames dance and cast flickering light, headstones bob (Restless) or rattle (Poltergeist, Banshee), banshee cards pulse red, the cobweb stirs, the girl ghost drifts and the hat ghost peeks in from the edge, floor fog and dust, cursor candlelight, grain.
+- Verified with a real static export rendered in a headless browser.
+
 ## 2026-11-25: Landing page, storm pass
 - Swapped the placeholder SVGs for the designer's PNGs: `ground.png` (hill, crosses, headstone, jack-o'-lanterns), `tree.png`, `hand.png`, and `cracks.png`, which is used as a light mask over the ground's fissures. The stage is now 1440 x 1026 so the ground art maps 1:1.
 - Opening like a horror cold open: the hand claws up in struggling heaves while the screen shakes in an earthquake (JS shake and synthesized rumble share one envelope), earth flies when it breaks the surface, then a close lightning strike and thunderclap. The storm continues with random strikes (multi-stroke flashes, procedural branching bolts, clouds lit from inside, thunder delayed by distance) and aftershocks every 18 to 34 s.
