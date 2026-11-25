@@ -31,6 +31,8 @@ type Props = {
   bands: FogBand[];
   /** RGB used for the fog, e.g. "160,180,215". */
   tint?: string;
+  /** "lighter" for glowing mist, "source-over" for dark cloud that hides what's behind it. */
+  blend?: "lighter" | "source-over";
   className?: string;
 };
 
@@ -57,7 +59,7 @@ function makeSprite(tint: string) {
  * Layered, drifting fog drawn with soft radial sprites on a canvas.
  * Puffs breathe in size and opacity so the fog never looks like a looping tile.
  */
-export function FogCanvas({ bands, tint = "160,180,215", className }: Props) {
+export function FogCanvas({ bands, tint = "160,180,215", blend = "lighter", className }: Props) {
   const ref = useRef<HTMLCanvasElement>(null);
   const reduced = useReducedMotion();
 
@@ -100,7 +102,7 @@ export function FogCanvas({ bands, tint = "160,180,215", className }: Props) {
       last = time;
       const t = time / 1000;
       ctx.clearRect(0, 0, width, height);
-      ctx.globalCompositeOperation = "lighter";
+      ctx.globalCompositeOperation = blend;
 
       for (const p of puffs) {
         if (!reduced) {
@@ -124,7 +126,7 @@ export function FogCanvas({ bands, tint = "160,180,215", className }: Props) {
     };
     // Bands are static configuration; re-seeding on every render would reset the fog.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reduced, tint]);
+  }, [reduced, tint, blend]);
 
   return <canvas ref={ref} aria-hidden="true" className={className} />;
 }
