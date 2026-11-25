@@ -1,11 +1,12 @@
-// Placeholder until the graveyard design arrives.
+import type { Metadata } from "next";
+import { GraveyardView } from "@/components/graveyard/GraveyardView";
+import { DEMO_PROJECTS } from "@/lib/demo/projects";
+
+export const metadata: Metadata = {
+  title: "The Public Graveyard · Revenant",
+};
+
+// Demo data for now; this switches to the saved index once the index builder lands.
 export default function Graveyard() {
-  return (
-    <main className="grid min-h-screen place-items-center bg-[#020308] px-6 text-center">
-      <div>
-        <h1 className="font-title text-4xl text-[#f4f6fb]">The Graveyard</h1>
-        <p className="font-mono mt-3 text-[#a3adbd]">The graves are still being dug.</p>
-      </div>
-    </main>
-  );
+  return <GraveyardView projects={DEMO_PROJECTS} />;
 }
