@@ -749,6 +749,559 @@ class SoundEngine {
     }
   }
 
+  /* ------------------------------------------------------------------ */
+  /*  Ghosts                                                             */
+  /* ------------------------------------------------------------------ */
+
+  /** A bus panned in space with a generous reverb send (ghosts sound far off). */
+  private voiceBus(pan: number, level: number, wet = 0.6) {
+    const ctx = this.ctx!;
+    const g = ctx.createGain();
+    g.gain.value = level;
+    const p = ctx.createStereoPanner();
+    p.pan.value = Math.max(-1, Math.min(1, pan));
+    g.connect(p).connect(this.sfx!);
+    const send = ctx.createGain();
+    send.gain.value = wet;
+    p.connect(send).connect(this.reverb!);
+    return g;
+  }
+
+  /**
+   * A ghost's voice. Calm ghosts whisper (breath shaped into syllables by two
+   * moving formants); angrier ones moan underneath.
+   * @param pan -1 (left) to 1 (right)
+   * @param anger 0 (whisper) to 1 (banshee)
+   * @param level overall loudness, 0..1
+   */
+  ghostVoice(pan = 0, anger = 0, level = 1) {
+    const ctx = this.ctx;
+    if (!ctx || !this.started) return;
+    const t0 = ctx.currentTime + 0.02;
+    const bus = this.voiceBus(pan, 0.9 * level, 0.7);
+
+    // Whisper: 3-6 breathy syllables.
+    const dur = rand(0.9, 1.6);
+    const src = this.source(this.noise!.pink);
+    const f1 = ctx.createBiquadFilter();
+    f1.type = "bandpass";
+    f1.Q.value = 4;
+    const f2 = ctx.createBiquadFilter();
+    f2.type = "bandpass";
+    f2.Q.value = 6;
+    const hp = ctx.createBiquadFilter();
+    hp.type = "highpass";
+    hp.frequency.value = 350;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t0);
+    const syllables = Math.round(rand(3, 6));
+    for (let i = 0; i < syllables; i++) {
+      const t = t0 + (i / syllables) * dur;
+      f1.frequency.setTargetAtTime(rand(450, 800), t, 0.04);
+      f2.frequency.setTargetAtTime(rand(1300, 2600), t, 0.04);
+      g.gain.setTargetAtTime(rand(0.35, 0.7), t, 0.03);
+      g.gain.setTargetAtTime(0.04, t + (dur / syllables) * 0.6, 0.05);
+    }
+    g.gain.setTargetAtTime(0, t0 + dur, 0.1);
+    src.connect(hp);
+    hp.connect(f1).connect(g);
+    hp.connect(f2).connect(g);
+    g.connect(bus);
+    this.startNoise(src, t0, dur + 0.6);
+
+    // Moan: a sliding, wavering tone through an "ooh" formant.
+    if (anger > 0.35) {
+      const mt = t0 + rand(0, 0.3);
+      const mdur = 1.4 + anger * 1.2;
+      const osc = ctx.createOscillator();
+      osc.type = "triangle";
+      const base = rand(170, 240) + anger * 60;
+      osc.frequency.setValueAtTime(base * 1.15, mt);
+      osc.frequency.exponentialRampToValueAtTime(base * 0.78, mt + mdur);
+      const vib = ctx.createOscillator();
+      vib.frequency.value = rand(4.5, 6.5);
+      const vibDepth = ctx.createGain();
+      vibDepth.gain.value = base * 0.03;
+      vib.connect(vibDepth).connect(osc.frequency);
+      const ooh = ctx.createBiquadFilter();
+      ooh.type = "bandpass";
+      ooh.frequency.value = 520;
+      ooh.Q.value = 2.5;
+      const mg = ctx.createGain();
+      mg.gain.setValueAtTime(0, mt);
+      mg.gain.linearRampToValueAtTime(0.32 * anger, mt + 0.45);
+      mg.gain.setTargetAtTime(0, mt + mdur * 0.6, mdur * 0.2);
+      osc.connect(ooh).connect(mg).connect(bus);
+      osc.start(mt);
+      vib.start(mt);
+      osc.stop(mt + mdur + 1);
+      vib.stop(mt + mdur + 1);
+    }
+  }
+
+  /** An angry ghost lunges at you: a rising, tearing shriek. */
+  ghostShriek(pan = 0) {
+    const ctx = this.ctx;
+    if (!ctx || !this.started) return;
+    const t0 = ctx.currentTime + 0.01;
+    const bus = this.voiceBus(pan, 0.75, 0.55);
+
+    // Two detuned, distorted voices sliding up then collapsing.
+    const shaper = ctx.createWaveShaper();
+    shaper.curve = softClip(3);
+    const hp = ctx.createBiquadFilter();
+    hp.type = "highpass";
+    hp.frequency.value = 320;
+    const fA = ctx.createBiquadFilter();
+    fA.type = "peaking";
+    fA.frequency.value = 1050;
+    fA.Q.value = 3;
+    fA.gain.value = 10;
+    const fB = ctx.createBiquadFilter();
+    fB.type = "peaking";
+    fB.frequency.value = 2700;
+    fB.Q.value = 4;
+    fB.gain.value = 8;
+    const vg = ctx.createGain();
+    vg.gain.setValueAtTime(0, t0);
+    vg.gain.linearRampToValueAtTime(0.32, t0 + 0.05);
+    vg.gain.setTargetAtTime(0.22, t0 + 0.12, 0.15);
+    vg.gain.setTargetAtTime(0, t0 + 0.55, 0.14);
+    shaper.connect(hp).connect(fA).connect(fB).connect(vg).connect(bus);
+    for (const ratio of [1, 1.06]) {
+      const osc = ctx.createOscillator();
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(480 * ratio, t0);
+      osc.frequency.exponentialRampToValueAtTime(1250 * ratio, t0 + 0.13);
+      osc.frequency.setValueAtTime(1250 * ratio, t0 + 0.32);
+      osc.frequency.exponentialRampToValueAtTime(360 * ratio, t0 + 0.95);
+      const vib = ctx.createOscillator();
+      vib.frequency.value = 11;
+      const depth = ctx.createGain();
+      depth.gain.value = 45 * ratio;
+      vib.connect(depth).connect(osc.frequency);
+      osc.connect(shaper);
+      osc.start(t0);
+      vib.start(t0);
+      osc.stop(t0 + 1.3);
+      vib.stop(t0 + 1.3);
+    }
+
+    // Rush of breath.
+    const breath = this.source(this.noise!.white);
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.setValueAtTime(1500, t0);
+    bp.frequency.exponentialRampToValueAtTime(3500, t0 + 0.2);
+    bp.Q.value = 0.9;
+    const bg = ctx.createGain();
+    bg.gain.setValueAtTime(0, t0);
+    bg.gain.linearRampToValueAtTime(0.28, t0 + 0.03);
+    bg.gain.setTargetAtTime(0, t0 + 0.12, 0.18);
+    breath.connect(bp).connect(bg).connect(bus);
+    this.startNoise(breath, t0, 1);
+
+    // A thud, as if it slammed into the glass.
+    const thud = ctx.createOscillator();
+    thud.frequency.setValueAtTime(110, t0);
+    thud.frequency.exponentialRampToValueAtTime(40, t0 + 0.25);
+    const tg = ctx.createGain();
+    tg.gain.setValueAtTime(0, t0);
+    tg.gain.linearRampToValueAtTime(0.5, t0 + 0.01);
+    tg.gain.setTargetAtTime(0, t0 + 0.03, 0.09);
+    thud.connect(tg).connect(this.sfx!);
+    thud.start(t0);
+    thud.stop(t0 + 0.6);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  Coming back to life                                                */
+  /* ------------------------------------------------------------------ */
+
+  /** A bell-like tone made of inharmonic partials. */
+  /* ------------------------------------------------------------------ */
+  /*  Tombs opening and closing                                          */
+  /* ------------------------------------------------------------------ */
+
+  /** A bus for one tomb sound: panned, into the sfx and the reverb. */
+  private tombBus(pan: number, level: number, wet = 0.45) {
+    const ctx = this.ctx!;
+    const out = ctx.createGain();
+    out.gain.value = level;
+    const p = ctx.createStereoPanner();
+    p.pan.value = Math.max(-1, Math.min(1, pan));
+    out.connect(p).connect(this.sfx!);
+    const send = ctx.createGain();
+    send.gain.value = wet;
+    p.connect(send).connect(this.reverb!);
+    return out;
+  }
+
+  /** Stick-slip friction: an envelope that catches and lurches, never smooth. */
+  private frictionCurve(steps: number, attack = 0.08, release = 0.2) {
+    const curve = new Float32Array(steps);
+    let v = 0.6;
+    for (let i = 0; i < steps; i++) {
+      const k = i / (steps - 1);
+      v += (Math.random() - 0.5) * 0.5;
+      v = Math.min(1, Math.max(0.25, v));
+      const env = Math.min(1, k / attack) * Math.min(1, (1 - k) / release);
+      curve[i] = v * env;
+    }
+    return curve;
+  }
+
+  /**
+   * Heavy stone dragged over stone: a low grind with gravel crumbling in it,
+   * and a dull knock when it comes to rest.
+   * @param weight 0..1, how massive the stone is (deeper and slower)
+   */
+  stoneGrind(duration: number, pan = 0, weight = 0.7) {
+    const ctx = this.ctx;
+    if (!ctx || !this.started || duration <= 0.1) return;
+    const noise = this.noise!;
+    const t0 = ctx.currentTime + 0.02;
+    const out = this.tombBus(pan, 0.95);
+
+    const grind = this.source(noise.brown);
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.Q.value = 1.4;
+    bp.frequency.setValueAtTime(260 - weight * 120, t0);
+    bp.frequency.linearRampToValueAtTime(200 - weight * 90, t0 + duration);
+    const rough = ctx.createWaveShaper();
+    rough.curve = softClip(2.4);
+    const g = ctx.createGain();
+    g.gain.setValueCurveAtTime(this.frictionCurve(48), t0, duration);
+    const level = ctx.createGain();
+    level.gain.value = 0.9;
+    grind.connect(bp).connect(rough).connect(g).connect(level).connect(out);
+    this.startNoise(grind, t0, duration + 0.1);
+
+    // Grit squealing between the faces.
+    const grit = this.source(noise.white);
+    const gh = ctx.createBiquadFilter();
+    gh.type = "bandpass";
+    gh.frequency.value = 1600;
+    gh.Q.value = 0.9;
+    const gg = ctx.createGain();
+    gg.gain.setValueCurveAtTime(this.frictionCurve(64, 0.05, 0.3).map((v) => v * v * 0.09), t0, duration);
+    grit.connect(gh).connect(gg).connect(out);
+    this.startNoise(grit, t0, duration + 0.1);
+
+    // Gravel and dust falling.
+    const gravel = this.source(this.crackleBuffer(ctx, duration + 0.6));
+    const gb = ctx.createBiquadFilter();
+    gb.type = "bandpass";
+    gb.frequency.value = 2600;
+    gb.Q.value = 0.6;
+    const gv = ctx.createGain();
+    gv.gain.value = 0.3;
+    gravel.connect(gb).connect(gv).connect(out);
+    gravel.start(t0 + 0.1);
+
+    this.stoneKnock(t0 + duration - 0.05, out, 0.5 + weight * 0.4);
+  }
+
+  /** A heavy stone settling into place. */
+  private stoneKnock(at: number, out: AudioNode, level: number) {
+    const ctx = this.ctx!;
+    const thud = this.source(this.noise!.brown);
+    const lp = ctx.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.value = 240;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, at);
+    g.gain.linearRampToValueAtTime(level, at + 0.012);
+    g.gain.setTargetAtTime(0, at + 0.03, 0.12);
+    thud.connect(lp).connect(g).connect(out);
+    this.startNoise(thud, at, 0.9);
+    const body = ctx.createOscillator();
+    body.frequency.setValueAtTime(72, at);
+    body.frequency.exponentialRampToValueAtTime(38, at + 0.4);
+    const bg = ctx.createGain();
+    bg.gain.setValueAtTime(0, at);
+    bg.gain.linearRampToValueAtTime(level * 0.6, at + 0.01);
+    bg.gain.setTargetAtTime(0, at + 0.03, 0.14);
+    body.connect(bg).connect(out);
+    body.start(at);
+    body.stop(at + 1);
+  }
+
+  /**
+   * Old bronze crypt doors: the latch gives with a clank, then rusted hinges
+   * groan as the leaves swing.
+   */
+  doorCreak(duration = 1.8, pan = 0) {
+    const ctx = this.ctx;
+    if (!ctx || !this.started) return;
+    const t0 = ctx.currentTime + 0.02;
+    const out = this.tombBus(pan, 0.85, 0.6);
+
+    // The latch.
+    this.bell(310, t0, 0.07, out, 0.6);
+    this.bell(523, t0 + 0.012, 0.05, out, 0.4);
+    this.stoneKnock(t0, out, 0.25);
+
+    // Two hinges, slightly apart in pitch and time: a sawtooth whose pitch
+    // wanders and catches, through a resonant "door" filter.
+    for (const [base, delay, side] of [
+      [118, 0.18, -0.25],
+      [143, 0.32, 0.25],
+    ] as const) {
+      const at = t0 + delay;
+      const len = duration - delay * 0.5;
+      const osc = ctx.createOscillator();
+      osc.type = "sawtooth";
+      const steps = 40;
+      const pitch = new Float32Array(steps);
+      let f: number = base;
+      for (let i = 0; i < steps; i++) {
+        f += (Math.random() - 0.45) * 26;
+        f = Math.min(base * 2.4, Math.max(base * 0.7, f));
+        pitch[i] = f;
+      }
+      osc.frequency.setValueCurveAtTime(pitch, at, len);
+      const res = ctx.createBiquadFilter();
+      res.type = "bandpass";
+      res.frequency.value = 900 + base * 3;
+      res.Q.value = 3.5;
+      const hp = ctx.createBiquadFilter();
+      hp.type = "highpass";
+      hp.frequency.value = 180;
+      const g = ctx.createGain();
+      g.gain.setValueCurveAtTime(this.frictionCurve(36, 0.12, 0.3).map((v) => v * v * 0.16), at, len);
+      const p = ctx.createStereoPanner();
+      p.pan.value = side;
+      osc.connect(res).connect(hp).connect(g).connect(p).connect(out);
+      osc.start(at);
+      osc.stop(at + len + 0.1);
+    }
+
+    // Air moving out of the dark inside.
+    const draught = this.source(this.noise!.pink);
+    const lp = ctx.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.setValueAtTime(400, t0 + 0.4);
+    lp.frequency.exponentialRampToValueAtTime(1400, t0 + duration);
+    const dg = ctx.createGain();
+    dg.gain.setValueAtTime(0, t0 + 0.4);
+    dg.gain.linearRampToValueAtTime(0.1, t0 + duration * 0.8);
+    dg.gain.setTargetAtTime(0, t0 + duration, 0.5);
+    draught.connect(lp).connect(dg).connect(out);
+    this.startNoise(draught, t0 + 0.4, duration + 1.5);
+  }
+
+  /** The tomb shutting again: a short drag and a heavy, final knock. */
+  tombSeal(kind: "stone" | "door", pan = 0) {
+    const ctx = this.ctx;
+    if (!ctx || !this.started) return;
+    if (kind === "stone") {
+      this.stoneGrind(0.7, pan, 0.8);
+      return;
+    }
+    const t0 = ctx.currentTime + 0.35;
+    const out = this.tombBus(pan, 0.9, 0.6);
+    this.stoneKnock(t0, out, 0.8);
+    this.bell(262, t0 + 0.01, 0.05, out, 0.9);
+  }
+
+  private bell(freq: number, at: number, level: number, out: AudioNode, decay = 2.2) {
+    const ctx = this.ctx!;
+    for (const [ratio, amp] of [
+      [1, 1],
+      [2.756, 0.4],
+      [5.404, 0.18],
+      [0.5, 0.25],
+    ] as const) {
+      const osc = ctx.createOscillator();
+      osc.frequency.value = freq * ratio;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, at);
+      g.gain.linearRampToValueAtTime(level * amp, at + 0.008);
+      g.gain.setTargetAtTime(0, at + 0.01, (decay / ratio) * 0.35 + 0.05);
+      osc.connect(g).connect(out);
+      osc.start(at);
+      osc.stop(at + decay + 0.5);
+    }
+  }
+
+  /**
+   * A quest was fixed: the ghost exhales, leaves rustle, and a chime rings,
+   * higher the more alive the project is.
+   * @param life 0..1 after this fix
+   */
+  playLifeReturn(life: number) {
+    const ctx = this.ctx;
+    if (!ctx || !this.started) return;
+    const t0 = ctx.currentTime + 0.02;
+    const out = ctx.createGain();
+    out.gain.value = 0.9;
+    out.connect(this.sfx!);
+    const send = ctx.createGain();
+    send.gain.value = 0.5;
+    out.connect(send).connect(this.reverb!);
+
+    // Relief: a long breath that falls away.
+    const sigh = this.source(this.noise!.pink);
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.Q.value = 1.2;
+    bp.frequency.setValueAtTime(1400, t0);
+    bp.frequency.exponentialRampToValueAtTime(450, t0 + 1.2);
+    const sg = ctx.createGain();
+    sg.gain.setValueAtTime(0, t0);
+    sg.gain.linearRampToValueAtTime(0.16, t0 + 0.25);
+    sg.gain.setTargetAtTime(0, t0 + 0.5, 0.35);
+    sigh.connect(bp).connect(sg).connect(out);
+    this.startNoise(sigh, t0, 2);
+
+    // Leaves and grass pushing up.
+    const rustle = this.source(this.crackleBuffer(ctx, 1.4));
+    const rh = ctx.createBiquadFilter();
+    rh.type = "bandpass";
+    rh.frequency.value = 4200;
+    rh.Q.value = 0.7;
+    const rg = ctx.createGain();
+    rg.gain.value = 0.18;
+    rustle.connect(rh).connect(rg).connect(out);
+    rustle.start(t0 + 0.15);
+
+    // A rising pair of chimes on a D major pentatonic.
+    const scale = [293.66, 329.63, 369.99, 440, 493.88, 587.33, 659.25, 739.99];
+    const step = Math.min(scale.length - 2, Math.floor(life * (scale.length - 2)));
+    this.bell(scale[step]!, t0 + 0.2, 0.16, out);
+    this.bell(scale[step + 1]!, t0 + 0.38, 0.13, out);
+  }
+
+  /**
+   * Resurrection: the stone cracks, light rushes out, an organ chord swells
+   * with a choir underneath, and bells climb into the morning.
+   */
+  playResurrection() {
+    const ctx = this.ctx;
+    if (!ctx || !this.started) return;
+    const noise = this.noise!;
+    const t0 = ctx.currentTime + 0.03;
+    const out = ctx.createGain();
+    out.gain.value = 0.85;
+    out.connect(this.sfx!);
+    const send = ctx.createGain();
+    send.gain.value = 0.55;
+    out.connect(send).connect(this.reverb!);
+
+    // 1. The tombstone cracks.
+    const crack = this.source(this.crackleBuffer(ctx, 0.7));
+    const ch = ctx.createBiquadFilter();
+    ch.type = "bandpass";
+    ch.frequency.value = 1800;
+    const cg = ctx.createGain();
+    cg.gain.value = 0.7;
+    crack.connect(ch).connect(cg).connect(out);
+    crack.start(t0);
+    const boom = this.source(noise.brown);
+    const blp = ctx.createBiquadFilter();
+    blp.type = "lowpass";
+    blp.frequency.value = 220;
+    const bg = ctx.createGain();
+    bg.gain.setValueAtTime(0, t0);
+    bg.gain.linearRampToValueAtTime(0.7, t0 + 0.02);
+    bg.gain.setTargetAtTime(0, t0 + 0.05, 0.25);
+    boom.connect(blp).connect(bg).connect(out);
+    this.startNoise(boom, t0, 1.5);
+
+    // 2. Light pours out: a rising rush.
+    const rush = this.source(noise.pink);
+    const rlp = ctx.createBiquadFilter();
+    rlp.type = "lowpass";
+    rlp.frequency.setValueAtTime(300, t0 + 0.2);
+    rlp.frequency.exponentialRampToValueAtTime(7000, t0 + 1.6);
+    const rg = ctx.createGain();
+    rg.gain.setValueAtTime(0.0001, t0 + 0.2);
+    rg.gain.exponentialRampToValueAtTime(0.22, t0 + 1.4);
+    rg.gain.setTargetAtTime(0, t0 + 1.6, 0.5);
+    rush.connect(rlp).connect(rg).connect(out);
+    this.startNoise(rush, t0 + 0.2, 3.5);
+
+    // 3. Organ chord (D major), drawbar-style harmonics with a slow swell.
+    const organ = ctx.createGain();
+    organ.gain.setValueAtTime(0, t0 + 0.6);
+    organ.gain.linearRampToValueAtTime(0.11, t0 + 1.8);
+    organ.gain.setValueAtTime(0.11, t0 + 4.2);
+    organ.gain.linearRampToValueAtTime(0, t0 + 7);
+    const trem = ctx.createOscillator();
+    trem.frequency.value = 5.8;
+    const tremDepth = ctx.createGain();
+    tremDepth.gain.value = 0.012;
+    trem.connect(tremDepth).connect(organ.gain);
+    trem.start(t0 + 0.6);
+    trem.stop(t0 + 7.2);
+    const organLp = ctx.createBiquadFilter();
+    organLp.type = "lowpass";
+    organLp.frequency.value = 3200;
+    organ.connect(organLp).connect(out);
+    for (const note of [146.83, 220, 293.66, 369.99, 440]) {
+      for (const [h, amp] of [
+        [1, 1],
+        [2, 0.55],
+        [3, 0.32],
+        [4, 0.25],
+        [6, 0.12],
+        [8, 0.08],
+      ] as const) {
+        const osc = ctx.createOscillator();
+        osc.frequency.value = note * h * (1 + rand(-0.0015, 0.0015));
+        const g = ctx.createGain();
+        g.gain.value = amp;
+        osc.connect(g).connect(organ);
+        osc.start(t0 + 0.6);
+        osc.stop(t0 + 7.2);
+      }
+    }
+
+    // 4. Choir "aah" underneath: detuned saws through vowel formants.
+    const choir = ctx.createGain();
+    choir.gain.setValueAtTime(0, t0 + 0.9);
+    choir.gain.linearRampToValueAtTime(0.05, t0 + 2.4);
+    choir.gain.setValueAtTime(0.05, t0 + 4.2);
+    choir.gain.linearRampToValueAtTime(0, t0 + 6.8);
+    for (const [f, q, gain] of [
+      [800, 6, 1],
+      [1150, 7, 0.6],
+      [2900, 9, 0.25],
+    ] as const) {
+      const bp = ctx.createBiquadFilter();
+      bp.type = "bandpass";
+      bp.frequency.value = f;
+      bp.Q.value = q;
+      const g = ctx.createGain();
+      g.gain.value = gain;
+      choir.connect(bp).connect(g).connect(out);
+    }
+    const choirIn = ctx.createGain();
+    choirIn.connect(choir);
+    for (const note of [293.66, 369.99, 440]) {
+      for (const cents of [-7, 6]) {
+        const osc = ctx.createOscillator();
+        osc.type = "sawtooth";
+        osc.frequency.value = note * Math.pow(2, cents / 1200);
+        const vib = ctx.createOscillator();
+        vib.frequency.value = rand(4.8, 5.6);
+        const vd = ctx.createGain();
+        vd.gain.value = note * 0.006;
+        vib.connect(vd).connect(osc.frequency);
+        osc.connect(choirIn);
+        osc.start(t0 + 0.9);
+        vib.start(t0 + 0.9);
+        osc.stop(t0 + 7);
+        vib.stop(t0 + 7);
+      }
+    }
+
+    // 5. Bells climb into the morning.
+    [587.33, 739.99, 880, 1174.66].forEach((f, i) => this.bell(f, t0 + 1.2 + i * 0.22, 0.12, out, 3));
+  }
+
   /** Sparse, decaying clicks: wax and wick popping. */
   private crackleBuffer(ctx: AudioContext, seconds: number) {
     const len = Math.floor(ctx.sampleRate * seconds);
